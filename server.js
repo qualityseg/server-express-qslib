@@ -11,6 +11,7 @@ const db = mysql.createPool({
   password: 'Suus0220##',
   database: 'qualityseg_db',
   connectionLimit: 10,
+  connectTimeout: 30000 // 30 segundos
 });
 
 db.getConnection((err, connection) => {

@@ -47,9 +47,10 @@ app.post('/login', (req, res) => {
     const token = jwt.sign({ id: user.id }, 'suus02201998##', { expiresIn: '1h' });
     res.cookie('token', token, { httpOnly: true });
 
-    res.send({ success: true });
+    res.send({ success: true, user: { username: user.usuario } }); // enviar o nome do usuário junto com o status de sucesso
   });
 });
+
 
 app.delete('/deleteAll', (req, res) => {
   const query = 'DELETE FROM cadastro';

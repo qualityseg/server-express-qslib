@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
+const mercadopago = require('mercadopago');
 
 const app = express();
 
@@ -11,7 +12,6 @@ const db = mysql.createPool({
   password: 'Suus0220##',
   database: 'qualityseg_db',
   connectionLimit: 10,
-  connectTimeout: 30000 // 30 segundos
 });
 
 db.getConnection((err, connection) => {
@@ -49,11 +49,31 @@ app.post('/login', (req, res) => {
   });
 });
 
+app.delete('/deleteAll', (req, res) => {
+  const query = 'DELETE FROM cadastro';
+  db.query(query, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.send({ success: false, message: 'Falha ao excluir registros: ' + err.message });
+    }
+
+    if (result.affectedRows > 0) {
+      res.send({ success: true, message: `${result.affectedRows} registro(s) foram excluídos.` });
+    } else {
+      res.send({ success: false, message: 'Não há registros para excluir.' });
+    }
+  });
+});
+
+
 app.post('/register', (req, res) => {
-  const { email, password } = req.body;
+  const { email, senha } = req.body;
+
+  console.log(`Email: ${email}`);
+  console.log(`Senha: ${senha}`);
 
   const query = 'INSERT INTO cadastro (email, senha) VALUES (?, ?)';
-  db.query(query, [email, password], (err, result) => {
+  db.query(query, [email, senha], (err, result) => {
     if (err) {
       console.log(err);
       return res.send({ success: false, message: err.message });
@@ -61,6 +81,32 @@ app.post('/register', (req, res) => {
 
     res.send({ success: true });
   });
+});
+
+
+mercadopago.configure({
+  access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
+});
+
+app.post('/create_preference', async (req, res) => {
+  const { title, price, quantity } = req.body;
+
+  const preference = {
+    items: [
+      {
+        title,
+        unit_price: Number(price),
+        quantity: Number(quantity),
+      },
+    ],
+  };
+
+  try {
+    const response = await mercadopago.preferences.create(preference); // Correção aqui
+    res.json({ id: response.body.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const port = process.env.PORT || 5000;

@@ -23,11 +23,13 @@ db.getConnection((err, connection) => {
 app.use(cors());
 app.use(express.json());
 
-app.post('/login', (req, res) => {
-  const { email, senha } = req.body; // Aqui a alteração
 
-  const query = 'SELECT * FROM cadastro WHERE email = ?';
-  db.query(query, [email], (err, results) => {
+app.post('/login', (req, res) => {
+  const { usuario, senha } = req.body;
+
+  const query = 'SELECT * FROM cadastro WHERE usuario = ?';
+  db.query(query, [usuario], (err, results) => {
+   
     if (err) {
       console.error('Error querying the database: ', err);
       return res.send({ success: false, message: err.message });
@@ -67,13 +69,11 @@ app.delete('/deleteAll', (req, res) => {
 
 
 app.post('/register', (req, res) => {
-  const { email, senha } = req.body;
+  const { usuario, senha } = req.body;
 
-  console.log(`Email: ${email}`);
-  console.log(`Senha: ${senha}`);
-
-  const query = 'INSERT INTO cadastro (email, senha) VALUES (?, ?)';
-  db.query(query, [email, senha], (err, result) => {
+  const query = 'INSERT INTO cadastro (usuario, senha) VALUES (?, ?)';
+  db.query(query, [usuario, senha], (err, result) => {
+    
     if (err) {
       console.log(err);
       return res.send({ success: false, message: err.message });

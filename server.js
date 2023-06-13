@@ -88,7 +88,7 @@ app.post('/register', (req, res) => {
 
 
 mercadopago.configure({
-  access_token: 'APP_USR-2684905602430236-052513-9eece6d19d92891e0f385f8ad4816f6d-135153905',
+  access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
 });
 
 app.post('/create_preference', async (req, res) => {

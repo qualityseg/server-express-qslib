@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
+const mercadopago = require('mercadopago');
 
 const app = express();
 
@@ -21,6 +22,7 @@ db.getConnection((err, connection) => {
 
 app.use(cors());
 app.use(express.json());
+
 
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;
@@ -44,12 +46,13 @@ app.post('/login', (req, res) => {
     
     const token = jwt.sign({ id: user.id }, 'suus02201998##', { expiresIn: '1h' });
     res.cookie('token', token, { httpOnly: true });
-
+    
     // inclua o nome do usuário na resposta
     res.send({ success: true, username: user.usuario, token });
     
   });
 });
+
 
 app.delete('/deleteAll', (req, res) => {
   const query = 'DELETE FROM cadastro';
@@ -67,6 +70,7 @@ app.delete('/deleteAll', (req, res) => {
   });
 });
 
+
 app.post('/register', (req, res) => {
   const { usuario, senha } = req.body;
 
@@ -80,6 +84,32 @@ app.post('/register', (req, res) => {
 
     res.send({ success: true });
   });
+});
+
+
+mercadopago.configure({
+  access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
+});
+
+app.post('/create_preference', async (req, res) => {
+  const { title, price, quantity } = req.body;
+
+  const preference = {
+    items: [
+      {
+        title,
+        unit_price: Number(price),
+        quantity: Number(quantity),
+      },
+    ],
+  };
+
+  try {
+    const response = await mercadopago.preferences.create(preference); // Correção aqui
+    res.json({ id: response.body.id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 const port = process.env.PORT || 5000;

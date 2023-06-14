@@ -15,6 +15,7 @@
         "mercadopago": "^1.5.16",
         "mysql": "^2.18.1",
         "nodemailer": "^6.9.3",
-        "serverless-http": "^3.2.0"
+        "serverless-http": "^3.2.0",
+        "twilio": "^4.11.2"
     }
 }

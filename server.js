@@ -145,18 +145,22 @@ app.post('/create_preference', async (req, res) => {
 
 app.post('/webhook', (req, res) => {
   const paymentId = req.query.id;
+  // Aqui você pode processar a notificação do pagamento.
+  // Por exemplo, você pode buscar os detalhes do pagamento usando o Mercado Pago SDK:
   mercadopago.payment.findById(paymentId).then(payment => {
+    // Aqui você tem os detalhes do pagamento.
+    // Você pode verificar o status do pagamento e agir de acordo.
     if (payment.status === 'approved') {
+      // O pagamento foi aprovado
+      // Você pode, por exemplo, enviar um e-mail para o usuário com os detalhes dos cursos que ele comprou.
       const additionalInfo = JSON.parse(payment.additional_info);
-      const { courses, email } = additionalInfo;
-
-      const courseTitles = courses.map(course => course.titulo).join(', ');
+      const { title, email } = additionalInfo;
 
       let mailOptions = {
         from: 'miguel.matheus@hotmail.com',
-        to: email, // use o e-mail do usuário aqui
+        to: 'miguel.matheus@hotmail.com', // use o seu e-mail aqui
         subject: 'Confirmação de Compra',
-        text: `O usuário com o e-mail ${email} comprou os seguintes cursos: ${courseTitles}. O valor total do pagamento é ${payment.transaction_amount}.`
+        text: `O usuário com o e-mail ${email} comprou os seguintes cursos: ${title}. O valor total do pagamento é ${payment.transaction_amount}.`
       };
 
       transporter.sendMail(mailOptions, function(error, info){
@@ -170,6 +174,7 @@ app.post('/webhook', (req, res) => {
   }).catch(err => {
     console.error('Erro ao buscar detalhes do pagamento: ', err);
   });
+  // Responda com um status 200 para indicar ao Mercado Pago que você recebeu a notificação.
   res.status(200).end();
 });
 

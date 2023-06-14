@@ -115,6 +115,7 @@ app.post('/create_preference', async (req, res) => {
     payer: {
       email,
     },
+    additional_info: JSON.stringify({ title, email }), // Armazene os detalhes do curso e o e-mail do usuário aqui
   };
 
   try {
@@ -122,10 +123,10 @@ app.post('/create_preference', async (req, res) => {
     
     // Enviar um e-mail para o usuário com os nomes dos cursos que ele comprou
     let mailOptions = {
-      from: 'miguel.matheus@gmail.com',
-      to: email, // use o e-mail do usuário aqui
+      from: 'miguel.matheus@hotmail.com',
+      to: 'miguel.matheus@hotmail.com', // use o seu e-mail aqui
       subject: 'Confirmação de Compra',
-      text: `Você comprou os seguintes cursos: ${title}`
+      text: `O usuário com o e-mail ${email} comprou os seguintes cursos: ${title}. O valor total do pagamento é ${price * quantity}.`
     };
 
     transporter.sendMail(mailOptions, function(error, info){
@@ -142,19 +143,32 @@ app.post('/create_preference', async (req, res) => {
   }
 });
 
+
 app.post('/webhook', (req, res) => {
   const paymentId = req.query.id;
-  // Aqui você pode processar a notificação do pagamento.
-  // Por exemplo, você pode buscar os detalhes do pagamento usando o Mercado Pago SDK:
   mercadopago.payment.findById(paymentId).then(payment => {
     // Aqui você tem os detalhes do pagamento.
     // Você pode, por exemplo, enviar um e-mail para o usuário com os detalhes dos cursos que ele comprou.
+    let transporter = nodemailer.createTransport({
+      service: 'Outlook365',
+      auth: {
+        user: 'miguel.matheus@hotmail.com',
+        pass: 'Mustang2019#'
+      }
+    });
+    transporter.sendMail(mailOptions, function(error, info){
+      if (error) {
+        console.log(error);
+      } else {
+        console.log('Email sent: ' + info.response);
+      }
+    });
   }).catch(err => {
     console.error('Erro ao buscar detalhes do pagamento: ', err);
   });
-  // Responda com um status 200 para indicar ao Mercado Pago que você recebeu a notificação.
   res.status(200).end();
 });
+
 
 const port = process.env.PORT || 5000;
 

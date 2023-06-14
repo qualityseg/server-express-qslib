@@ -3,8 +3,12 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const mercadopago = require('mercadopago');
+const twilio = require('twilio');
 
-const nodemailer = require('nodemailer');
+
+const accountSid = 'AC70ff9c698a1bd034555f3ba4d29c7750'; // Seu Account SID da Twilio
+const authToken = 'aa4e96f3f419b68df5843f38ec7a19d5'; // Seu Auth Token da Twilio
+const client = twilio(accountSid, authToken);
 
 let transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -153,23 +157,17 @@ app.post('/webhook', (req, res) => {
     if (payment.status === 'approved') {
       // O pagamento foi aprovado
       // Você pode, por exemplo, enviar um e-mail para o usuário com os detalhes dos cursos que ele comprou.
-      const additionalInfo = JSON.parse(payment.additional_info);
-      const { title, email } = additionalInfo;
-
-      let mailOptions = {
-        from: 'miguel.matheus@hotmail.com',
-        to: 'miguel.matheus@hotmail.com', // use o seu e-mail aqui
-        subject: 'Confirmação de Compra',
-        text: `O usuário com o e-mail ${email} comprou os seguintes cursos: ${title}. O valor total do pagamento é ${payment.transaction_amount}.`
-      };
-
-      transporter.sendMail(mailOptions, function(error, info){
-        if (error) {
-          console.log(error);
-        } else {
-          console.log('Email sent: ' + info.response);
-        }
-      });
+      
+      // Adicione o seguinte código para enviar uma mensagem para o WhatsApp
+      const message = `O usuário com o e-mail ${payment.additional_info.email} comprou os seguintes cursos: ${payment.additional_info.title}. O valor total do pagamento é ${payment.transaction_amount}. ID da compra: ${payment.id}.`;
+      client.messages
+        .create({
+          body: message,
+          from: 'whatsapp:+14155238886', // Número do WhatsApp da Twilio
+          to: 'whatsapp:+5514998141078'  // Seu número de WhatsApp
+        })
+        .then(message => console.log(message.sid))
+        .catch(err => console.error(err));
     }
   }).catch(err => {
     console.error('Erro ao buscar detalhes do pagamento: ', err);
@@ -177,7 +175,6 @@ app.post('/webhook', (req, res) => {
   // Responda com um status 200 para indicar ao Mercado Pago que você recebeu a notificação.
   res.status(200).end();
 });
-
 
 
 const port = process.env.PORT || 5000;

@@ -6,6 +6,14 @@ const mercadopago = require('mercadopago');
 
 const nodemailer = require('nodemailer');
 
+let transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'miguel.matheus@hotmail.com',
+    pass: 'Mustang2019#'
+  }
+});
+
 const app = express();
 
 const db = mysql.createPool({
@@ -94,8 +102,7 @@ mercadopago.configure({
 });
 
 app.post('/create_preference', async (req, res) => {
-  const email = req.body.email;
-  const { title, price, quantity } = req.body;
+  const { title, price, quantity, email } = req.body;
 
   const preference = {
     items: [
@@ -105,58 +112,48 @@ app.post('/create_preference', async (req, res) => {
         quantity: Number(quantity),
       },
     ],
-    back_urls: {
-      success: 'http://localhost:3000/success', // URL para redirecionar o usuário após a compra bem-sucedida
-      failure: 'http://localhost:3000/failure', // URL para redirecionar o usuário após a compra mal sucedida
-      pending: 'http://localhost:3000/pending' // URL para redirecionar o usuário quando a compra estiver pendente
-    },
-    auto_return: 'approved',
     payer: {
-      email
-    }
+      email,
+    },
   };
 
   try {
     const response = await mercadopago.preferences.create(preference);
+    
+    // Enviar um e-mail para o usuário com os nomes dos cursos que ele comprou
+    let mailOptions = {
+      from: 'miguel.matheus@gmail.com',
+      to: email, // use o e-mail do usuário aqui
+      subject: 'Confirmação de Compra',
+      text: `Você comprou os seguintes cursos: ${title}`
+    };
+
+    transporter.sendMail(mailOptions, function(error, info){
+      if (error) {
+        console.log(error);
+      } else {
+        console.log('Email sent: ' + info.response);
+      }
+    });
+
     res.json({ id: response.body.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/success', (req, res) => {
-  const paymentInfo = req.query; // Aqui você obtém as informações de pagamento retornadas pelo Mercado Pago
-
-  // Você pode obter o título do item (curso) da seguinte maneira:
-  const courseNames = paymentInfo.external_reference;
-
-  const userEmail = paymentInfo.payer.email;
-
-  // Agora você pode enviar um e-mail para o usuário com os nomes dos cursos que ele comprou
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: 'miguel.matheus@gmail.com',
-      pass: 'Mustang2019#'
-    }
+app.post('/webhook', (req, res) => {
+  const paymentId = req.query.id;
+  // Aqui você pode processar a notificação do pagamento.
+  // Por exemplo, você pode buscar os detalhes do pagamento usando o Mercado Pago SDK:
+  mercadopago.payment.findById(paymentId).then(payment => {
+    // Aqui você tem os detalhes do pagamento.
+    // Você pode, por exemplo, enviar um e-mail para o usuário com os detalhes dos cursos que ele comprou.
+  }).catch(err => {
+    console.error('Erro ao buscar detalhes do pagamento: ', err);
   });
-
-  const mailOptions = {
-    from: 'miguel.matheus@gmail.com',
-    to: userEmail, // Você precisa obter o e-mail do cliente de alguma maneira
-    subject: 'Confirmação de Compra',
-    text: `Obrigado por comprar os seguintes cursos: ${courseNames}`
-  };
-
-  transporter.sendMail(mailOptions, function(error, info){
-    if (error) {
-      console.log(error);
-    } else {
-      console.log('Email enviado: ' + info.response);
-    }
-  });
-
-  res.send('Pagamento aprovado com sucesso!'); // Você pode personalizar essa mensagem
+  // Responda com um status 200 para indicar ao Mercado Pago que você recebeu a notificação.
+  res.status(200).end();
 });
 
 const port = process.env.PORT || 5000;

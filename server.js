@@ -143,32 +143,36 @@ app.post('/create_preference', async (req, res) => {
   }
 });
 
-
-
 app.post('/webhook', (req, res) => {
   const paymentId = req.query.id;
   mercadopago.payment.findById(paymentId).then(payment => {
-    // Aqui você tem os detalhes do pagamento.
-    // Você pode, por exemplo, enviar um e-mail para o usuário com os detalhes dos cursos que ele comprou.
-    let transporter = nodemailer.createTransport({
-      service: 'Outlook365',
-      auth: {
-        user: 'miguel.matheus@hotmail.com',
-        pass: 'Mustang2019#'
-      }
-    });
-    transporter.sendMail(mailOptions, function(error, info){
-      if (error) {
-        console.log(error);
-      } else {
-        console.log('Email sent: ' + info.response);
-      }
-    });
+    if (payment.status === 'approved') {
+      const additionalInfo = JSON.parse(payment.additional_info);
+      const { courses, email } = additionalInfo;
+
+      const courseTitles = courses.map(course => course.titulo).join(', ');
+
+      let mailOptions = {
+        from: 'miguel.matheus@hotmail.com',
+        to: email, // use o e-mail do usuário aqui
+        subject: 'Confirmação de Compra',
+        text: `O usuário com o e-mail ${email} comprou os seguintes cursos: ${courseTitles}. O valor total do pagamento é ${payment.transaction_amount}.`
+      };
+
+      transporter.sendMail(mailOptions, function(error, info){
+        if (error) {
+          console.log(error);
+        } else {
+          console.log('Email sent: ' + info.response);
+        }
+      });
+    }
   }).catch(err => {
     console.error('Erro ao buscar detalhes do pagamento: ', err);
   });
   res.status(200).end();
 });
+
 
 
 const port = process.env.PORT || 5000;

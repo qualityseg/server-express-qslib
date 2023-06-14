@@ -4,6 +4,8 @@ const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const mercadopago = require('mercadopago');
 
+const nodemailer = require('nodemailer');
+
 const app = express();
 
 const db = mysql.createPool({
@@ -92,6 +94,7 @@ mercadopago.configure({
 });
 
 app.post('/create_preference', async (req, res) => {
+  const email = req.body.email;
   const { title, price, quantity } = req.body;
 
   const preference = {
@@ -102,14 +105,58 @@ app.post('/create_preference', async (req, res) => {
         quantity: Number(quantity),
       },
     ],
+    back_urls: {
+      success: 'http://localhost:3000/success', // URL para redirecionar o usuário após a compra bem-sucedida
+      failure: 'http://localhost:3000/failure', // URL para redirecionar o usuário após a compra mal sucedida
+      pending: 'http://localhost:3000/pending' // URL para redirecionar o usuário quando a compra estiver pendente
+    },
+    auto_return: 'approved',
+    payer: {
+      email
+    }
   };
 
   try {
-    const response = await mercadopago.preferences.create(preference); // Correção aqui
+    const response = await mercadopago.preferences.create(preference);
     res.json({ id: response.body.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+app.post('/success', (req, res) => {
+  const paymentInfo = req.query; // Aqui você obtém as informações de pagamento retornadas pelo Mercado Pago
+
+  // Você pode obter o título do item (curso) da seguinte maneira:
+  const courseNames = paymentInfo.external_reference;
+
+  const userEmail = paymentInfo.payer.email;
+
+  // Agora você pode enviar um e-mail para o usuário com os nomes dos cursos que ele comprou
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'miguel.matheus@gmail.com',
+      pass: 'Mustang2019#'
+    }
+  });
+
+  const mailOptions = {
+    from: 'miguel.matheus@gmail.com',
+    to: userEmail, // Você precisa obter o e-mail do cliente de alguma maneira
+    subject: 'Confirmação de Compra',
+    text: `Obrigado por comprar os seguintes cursos: ${courseNames}`
+  };
+
+  transporter.sendMail(mailOptions, function(error, info){
+    if (error) {
+      console.log(error);
+    } else {
+      console.log('Email enviado: ' + info.response);
+    }
+  });
+
+  res.send('Pagamento aprovado com sucesso!'); // Você pode personalizar essa mensagem
 });
 
 const port = process.env.PORT || 5000;

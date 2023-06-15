@@ -12,6 +12,7 @@ const db = mysql.createPool({
   password: 'Suus0220##',
   database: 'qualityseg_db',
   connectionLimit: 10,
+  connectTimeout: 30000, // 30 seconds
 });
 
 db.getConnection((err, connection) => {
@@ -104,7 +105,14 @@ app.post('/register', (req, res) => {
 
 
 app.post('/webhook', (req, res) => {
-  console.log(req.body); // Adicionado para logar o corpo da requisição
+  console.log(req.body); // log the request body
+
+  // Check if the necessary data exists in the request body
+  if (!req.body || !req.body.data || !req.body.data.id) {
+    console.error('Invalid request body:', req.body);
+    return res.status(400).send({ success: false, message: 'Invalid request body' });
+  }
+
 
   const { id, email, additional_info } = req.body;
 
@@ -123,6 +131,8 @@ app.post('/webhook', (req, res) => {
     }
 
     res.send({ success: true });
+
+    
   });
 });
 

@@ -3,13 +3,6 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const mercadopago = require('mercadopago');
-const twilio = require('twilio');
-
-
-const accountSid = 'AC70ff9c698a1bd034555f3ba4d29c7750'; // Seu Account SID da Twilio
-const authToken = 'aa4e96f3f419b68df5843f38ec7a19d5'; // Seu Auth Token da Twilio
-const client = twilio(accountSid, authToken);
-
 
 const app = express();
 
@@ -92,6 +85,25 @@ app.post('/register', (req, res) => {
     res.send({ success: true });
   });
 });
+db.getConnection((err, connection) => {
+  if (err) throw err;
+  console.log('Conectado ao banco de dados MySQL');
+
+  const createTableQuery = `
+    CREATE TABLE IF NOT EXISTS cadastro(
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      usuario VARCHAR(255) NOT NULL,
+      senha VARCHAR(255) NOT NULL
+    )`;
+
+  connection.query(createTableQuery, function(err, results, fields) {
+    if (err) {
+      console.log(err.message);
+    }
+  });
+
+  connection.release();
+});
 
 
 mercadopago.configure({
@@ -109,41 +121,15 @@ app.post('/create_preference', async (req, res) => {
         quantity: Number(quantity),
       },
     ],
-    additional_info: JSON.stringify({ title }), // Armazene os detalhes do curso aqui
   };
 
   try {
-    const response = await mercadopago.preferences.create(preference);
+    const response = await mercadopago.preferences.create(preference); // Correção aqui
     res.json({ id: response.body.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-
-app.post('/webhook', (req, res) => {
-  const paymentId = req.query.id;
-  mercadopago.payment.findById(paymentId).then(payment => {
-    if (payment.status === 'approved') {
-      const additionalInfo = JSON.parse(payment.additional_info);
-      const { title } = additionalInfo;
-
-      // Enviar uma mensagem para o WhatsApp com os detalhes da compra
-      client.messages
-        .create({
-          body: `O usuário comprou os seguintes cursos: ${title}. O valor total do pagamento é ${payment.transaction_amount}.`,
-          from: 'whatsapp:+14155238886', // Número do WhatsApp da Twilio
-          to: 'whatsapp:+5514998141078' // Seu número de WhatsApp
-        })
-        .then(message => console.log(message.sid))
-        .catch(err => console.error(err));
-    }
-  }).catch(err => {
-    console.error('Erro ao buscar detalhes do pagamento: ', err);
-  });
-  res.status(200).end();
-});
-
-
 
 const port = process.env.PORT || 5000;
 

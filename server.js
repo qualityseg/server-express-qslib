@@ -101,6 +101,8 @@ app.post('/register', (req, res) => {
 
 
 app.post('/webhook', (req, res) => {
+  console.log(req.body); // Adicionado para logar o corpo da requisição
+
   const { id, email, additional_info } = req.body;
 
   // Parse the additional_info to get the courses
@@ -113,13 +115,14 @@ app.post('/webhook', (req, res) => {
   const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
   db.query(query, [id, email, JSON.stringify(courses), valor], (err, result) => {
     if (err) {
-      console.log(err);
+      console.error(err); // Adicionado para logar qualquer erro que ocorra
       return res.send({ success: false, message: err.message });
     }
 
     res.send({ success: true });
   });
 });
+
 
 
 

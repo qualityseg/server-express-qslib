@@ -23,6 +23,18 @@ db.getConnection((err, connection) => {
 app.use(cors());
 app.use(express.json());
 
+db.query(`
+  CREATE TABLE IF NOT EXISTS pagamentos (
+    id INT AUTO_INCREMENT,
+    email VARCHAR(255) NOT NULL,
+    cursos TEXT NOT NULL,
+    valor DECIMAL(10, 2) NOT NULL,
+    PRIMARY KEY (id)
+  )`, (err, result) => {
+    if (err) throw err;
+    console.log("Tabela 'pagamentos' verificada/criada com sucesso.");
+});
+
 
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;
@@ -84,26 +96,31 @@ app.post('/register', (req, res) => {
 
     res.send({ success: true });
   });
+
 });
-db.getConnection((err, connection) => {
-  if (err) throw err;
-  console.log('Conectado ao banco de dados MySQL');
 
-  const createTableQuery = `
-    CREATE TABLE IF NOT EXISTS cadastro(
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      usuario VARCHAR(255) NOT NULL,
-      senha VARCHAR(255) NOT NULL
-    )`;
 
-  connection.query(createTableQuery, function(err, results, fields) {
+app.post('/webhook', (req, res) => {
+  const { id, email, additional_info } = req.body;
+
+  // Parse the additional_info to get the courses
+  const { courses } = JSON.parse(additional_info);
+
+  // Calculate the total value of the courses
+  const valor = courses.reduce((total, curso) => total + curso.valor * curso.quantidade, 0);
+
+  // Insert the payment data into the 'pagamentos' table
+  const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+  db.query(query, [id, email, JSON.stringify(courses), valor], (err, result) => {
     if (err) {
-      console.log(err.message);
+      console.log(err);
+      return res.send({ success: false, message: err.message });
     }
-  });
 
-  connection.release();
+    res.send({ success: true });
+  });
 });
+
 
 
 mercadopago.configure({

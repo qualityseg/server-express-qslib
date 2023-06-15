@@ -26,14 +26,17 @@ app.use(express.json());
 db.query(`
   CREATE TABLE IF NOT EXISTS pagamentos (
     id INT AUTO_INCREMENT,
+    usuario_id INT NOT NULL,
     email VARCHAR(255) NOT NULL,
     cursos TEXT NOT NULL,
     valor DECIMAL(10, 2) NOT NULL,
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
   )`, (err, result) => {
     if (err) throw err;
     console.log("Tabela 'pagamentos' verificada/criada com sucesso.");
 });
+
 
 
 app.post('/login', (req, res) => {

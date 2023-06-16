@@ -139,7 +139,8 @@ app.post('/webhook', async (req, res) => {
     try {
       // Fetch payment details from Mercado Pago API
       const payment = await mercadopago.payment.findById(event.data.id);
-
+      console.log(payment);  
+      
       if (payment.status === 'approved') {
         const email = payment.payer.email;
         const sessionId = payment.id;

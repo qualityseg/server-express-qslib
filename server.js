@@ -61,14 +61,13 @@ app.use(cors())
 app.use(express.json());
 
 app.post('/create_preference', (req, res) => {
-  // extrair session_id do cookie
+  const { email, course_id, quantidade, titulo, valor } = req.body;
   const session_id = req.cookies['session_id'];
-
-
+  
   let expiryDate = new Date();
   expiryDate.setHours(expiryDate.getHours() + 1);
 
-  const addSelectedCourseQuery = 'INSERT INTO selected_courses (email, course_id, quantidade, titulo, valor, expiry) VALUES (?, ?, ?, ?, ?, ?)';
+  const addSelectedCourseQuery = 'INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry) VALUES (?, ?, ?, ?, ?, ?, ?)';
 
   db.query(addSelectedCourseQuery, [session_id, email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
     if (err) {
@@ -79,6 +78,7 @@ app.post('/create_preference', (req, res) => {
     }
   });
 });
+
 setInterval(() => {
   let deleteExpiredSelectionsQuery = 'DELETE FROM selected_courses WHERE expiry < NOW()';
   db.query(deleteExpiredSelectionsQuery, (err, result) => {

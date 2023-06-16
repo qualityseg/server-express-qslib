@@ -24,13 +24,17 @@ db.getConnection((err, connection) => {
   if (err) throw err;
   console.log('Conectado ao banco de dados MySQL');
 
-  const createCheckoutTableQuery = `
-    CREATE TABLE IF NOT EXISTS checkout (
+  const createSelectedCoursesTableQuery = `
+    CREATE TABLE IF NOT EXISTS selected_courses (
+      id INT AUTO_INCREMENT,
       session_id VARCHAR(255) NOT NULL,
       email VARCHAR(255),
-      cursos VARCHAR(255),
+      course_id INT,
+      quantidade INT,
+      titulo VARCHAR(255),
       valor DOUBLE,
-      PRIMARY KEY (session_id)
+      expiry TIMESTAMP,
+      PRIMARY KEY (id)
     )
   `;
 
@@ -42,6 +46,24 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
+const expiryDate = new Date();
+expiryDate.setHours(expiryDate.getHours() + 1);
+
+const addSelectedCourseQuery = `
+  INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`;
+
+db.query(addSelectedCourseQuery, [session_id, email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
+  // handle results
+});
+
+setInterval(() => {
+  const deleteExpiredQuery = `DELETE FROM selected_courses WHERE expiry < NOW()`;
+  db.query(deleteExpiredQuery, (err, result) => {
+    // handle results
+  });
+}, 3600000); // executa a cada hora
 
 app.use(cors());
 app.use(express.json());

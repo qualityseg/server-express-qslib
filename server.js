@@ -139,13 +139,13 @@ app.post('/webhook', async (req, res) => {
     try {
       // Fetch payment details from Mercado Pago API
       const payment = await mercadopago.payment.findById(event.data.id);
-      console.log(payment);
 
-      if (payment.response.status === 'approved') {
-        const email = payment.payer.email;
-        const sessionId = payment.id;
-        const courses = JSON.parse(payment.additional_info.items);
-        const amount = payment.transaction_amount;
+      // Check if payment and payer exist and the payment is approved
+      if (payment.body && payment.body.payer && payment.body.status === 'approved') {
+        const email = payment.body.payer.email;
+        const sessionId = payment.body.id;
+        const courses = JSON.parse(payment.body.additional_info.items);
+        const amount = payment.body.transaction_amount;
 
         console.log("Saving checkout data", {sessionId, email, courses, amount});  
 
@@ -170,6 +170,7 @@ app.post('/webhook', async (req, res) => {
 
   res.status(200).end();
 });
+
 
 
 

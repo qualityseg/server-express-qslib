@@ -48,17 +48,6 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
-const expiryDate = new Date();
-expiryDate.setHours(expiryDate.getHours() + 1);
-
-const addSelectedCourseQuery = `
-  INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-`;
-
-db.query(addSelectedCourseQuery, [session_id, email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
-  // handle results
-});
 
 setInterval(() => {
   const deleteExpiredQuery = `DELETE FROM selected_courses WHERE expiry < NOW()`;
@@ -90,7 +79,6 @@ app.post('/create_preference', (req, res) => {
     }
   });
 });
-
 setInterval(() => {
   let deleteExpiredSelectionsQuery = 'DELETE FROM selected_courses WHERE expiry < NOW()';
   db.query(deleteExpiredSelectionsQuery, (err, result) => {

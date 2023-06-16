@@ -12,7 +12,6 @@ const db = mysql.createPool({
   password: 'Suus0220##',
   database: 'qualityseg_db',
   connectionLimit: 10,
-  connectTimeout: 30000, // 30 seconds
 });
 
 db.getConnection((err, connection) => {
@@ -21,23 +20,31 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
-app.use(cors());
-app.use(express.json());
+db.getConnection((err, connection) => {
+  if (err) throw err;
+  console.log('Conectado ao banco de dados MySQL');
 
-db.query(`
-  CREATE TABLE IF NOT EXISTS pagamentos (
-    id INT AUTO_INCREMENT,
-    usuario_id INT NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    cursos TEXT NOT NULL,
-    valor DECIMAL(10, 2) NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
-  )`, (err, result) => {
+  const createCheckoutTableQuery = `
+    CREATE TABLE IF NOT EXISTS checkout (
+      session_id VARCHAR(255) NOT NULL,
+      email VARCHAR(255),
+      cursos VARCHAR(255),
+      valor DOUBLE,
+      PRIMARY KEY (session_id)
+    )
+  `;
+
+  connection.query(createCheckoutTableQuery, err => {
     if (err) throw err;
-    console.log("Tabela 'pagamentos' verificada/criada com sucesso.");
+    console.log('Tabela de checkout verificada / criada com sucesso');
+  });
+
+  connection.release();
 });
 
+
+app.use(cors());
+app.use(express.json());
 
 
 app.post('/login', (req, res) => {
@@ -86,6 +93,28 @@ app.delete('/deleteAll', (req, res) => {
   });
 });
 
+app.post('/checkout', (req, res) => {
+  // Extrai os dados de checkout do corpo da solicitação
+  const { email, cursos, valor } = req.body;
+
+  // Gera uma ID de sessão única
+  const sessionId = jwt.sign({ email }, 'suus02201998##', { expiresIn: '1h' });
+
+  // Consulta para inserir os dados de checkout no banco de dados
+  const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+  
+  // Executa a consulta
+  db.query(query, [sessionId, email, cursos, valor], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send({ success: false, message: err.message });
+    }
+
+    // Envia a ID da sessão como resposta
+    res.send({ success: true, sessionId });
+  });
+});
+
 
 app.post('/register', (req, res) => {
   const { usuario, senha } = req.body;
@@ -103,40 +132,22 @@ app.post('/register', (req, res) => {
 
 });
 
+app.post('/payment_notification', (req, res) => {
+  // Extraia os detalhes do pagamento do corpo da requisição
+  const { id, email, cursos, valor } = req.body;
 
-app.post('/webhook', (req, res) => {
-  console.log(req.body); // log the request body
-
-  // Check if the necessary data exists in the request body
-  if (!req.body || !req.body.data || !req.body.data.id) {
-    console.error('Invalid request body:', req.body);
-    return res.status(400).send({ success: false, message: 'Invalid request body' });
-  }
-
-
-  const { id, email, additional_info } = req.body;
-
-  // Parse the additional_info to get the courses
-  const { courses } = JSON.parse(additional_info);
-
-  // Calculate the total value of the courses
-  const valor = courses.reduce((total, curso) => total + curso.valor * curso.quantidade, 0);
-
-  // Insert the payment data into the 'pagamentos' table
+  // Query para inserir os detalhes do pagamento no banco de dados
   const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-  db.query(query, [id, email, JSON.stringify(courses), valor], (err, result) => {
+  
+  // Execute a query
+  db.query(query, [id, email, cursos, valor], (err, result) => {
     if (err) {
-      console.error(err); // Adicionado para logar qualquer erro que ocorra
-      return res.send({ success: false, message: err.message });
+      console.log(err);
+      return res.status(500).send({ success: false, message: err.message });
     }
-
     res.send({ success: true });
-
-    
   });
 });
-
-
 
 
 mercadopago.configure({

@@ -151,12 +151,13 @@ app.post('/webhook', async (req, res) => {
 
         const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
         db.query(query, [sessionId, email, JSON.stringify(courses), amount], (err, result) => {
-            if (err) {
-                console.error('Error inserting checkout data into the database: ', err);
-                return res.status(500).send({ success: false, message: err.message });
-            }
-            console.log("Successfully saved checkout data");
-            res.send({ success: true });
+          if (err) {
+              console.error('Error inserting checkout data into the database: ', err);
+              return res.status(500).send({ success: false, message: err.message });
+          }
+          console.log("Query result: ", result);
+          console.log("Successfully saved checkout data");
+          res.send({ success: true });
         });
       } else {
         console.log("Payment not approved, ignoring");

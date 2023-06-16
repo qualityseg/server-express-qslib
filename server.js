@@ -1,5 +1,7 @@
 const express = require('express');
+const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
+const uuid = require('uuid');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
@@ -7,6 +9,8 @@ const mercadopago = require('mercadopago');
 
 const app = express();
 app.use(cookieParser());
+app.use(cors())
+app.use(express.json());
 
 const db = mysql.createPool({
   host: '129.148.55.118',
@@ -22,48 +26,19 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
-db.getConnection((err, connection) => {
-  if (err) throw err;
-  console.log('Conectado ao banco de dados MySQL');
-
-  const createSelectedCoursesTableQuery = `
-    CREATE TABLE IF NOT EXISTS selected_courses (
-      id INT AUTO_INCREMENT,
-      session_id VARCHAR(255) NOT NULL,
-      email VARCHAR(255),
-      course_id INT,
-      quantidade INT,
-      titulo VARCHAR(255),
-      valor DOUBLE,
-      expiry TIMESTAMP,
-      PRIMARY KEY (id)
-    )
-  `;
-
-  connection.query(createSelectedCoursesTableQuery, err => {
-    if (err) throw err;
-    console.log('Tabela de checkout verificada / criada com sucesso');
-  });
-  
-  connection.release();
-});
-
-app.use(cors())
-
-app.use(express.json());
-
 app.post('/create_preference', (req, res) => {
-  const { email, courses } = req.body;
+  if (!req.cookies['session_id']) {
+    res.cookie('session_id', uuid.v4());
+  }
+  const { email, course_id, quantidade, titulo, valor } = req.body;
   const session_id = req.cookies['session_id'];
   
   let expiryDate = new Date();
   expiryDate.setHours(expiryDate.getHours() + 1);
 
-  const addSelectedCourseQuery = 'INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry) VALUES ?';
+  const addSelectedCourseQuery = 'INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry) VALUES (?, ?, ?, ?, ?, ?, ?)';
 
-  const values = courses.map(course => [session_id, email, course.id, course.quantidade, course.titulo, course.valor, expiryDate]);
-
-  db.query(addSelectedCourseQuery, [values], (err, result) => {
+  db.query(addSelectedCourseQuery, [session_id, email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
     if (err) {
       console.error(err);
       res.status(500).send('Erro ao processar a solicitação');
@@ -83,6 +58,7 @@ setInterval(() => {
     }
   });
 }, 10 * 60 * 1000); // Executa a cada 10 minutos
+
 
 app.use(cors())
 

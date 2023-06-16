@@ -59,42 +59,6 @@ setInterval(() => {
   });
 }, 10 * 60 * 1000); // Executa a cada 10 minutos
 
-
-app.use(cors())
-
-app.use(express.json());
-
-app.post('/create_preference', (req, res) => {
-  const { email, course_id, quantidade, titulo, valor } = req.body;
-  const session_id = req.cookies['session_id'];
-  
-  let expiryDate = new Date();
-  expiryDate.setHours(expiryDate.getHours() + 1);
-
-  const addSelectedCourseQuery = 'INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry) VALUES (?, ?, ?, ?, ?, ?, ?)';
-
-  db.query(addSelectedCourseQuery, [session_id, email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Erro ao processar a solicitação');
-    } else {
-      res.status(200).send('Seleção adicionada com sucesso');
-    }
-  });
-});
-
-setInterval(() => {
-  let deleteExpiredSelectionsQuery = 'DELETE FROM selected_courses WHERE expiry < NOW()';
-  db.query(deleteExpiredSelectionsQuery, (err, result) => {
-    if (err) {
-      console.error('Erro ao apagar seleções expiradas:', err);
-    } else {
-      console.log('Seleções expiradas apagadas com sucesso');
-    }
-  });
-}, 10 * 60 * 1000); // Executa a cada 10 minutos
-
-
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;
 
@@ -141,27 +105,35 @@ app.delete('/deleteAll', (req, res) => {
   });
 });
 
-app.post('/checkout', (req, res) => {
-  // Extrai os dados de checkout do corpo da solicitação
-  const { email, cursos, valor } = req.body;
+app.post('/checkout', function (req, res) {
+  if (req.session.cart && req.session.cart.length > 0) { // Verifique se o carrinho existe e não está vazio
+      let values = req.session.cart.map(item => [
+          req.session.id, 
+          req.session.email, 
+          item.course_id, 
+          item.quantidade, 
+          item.titulo, 
+          item.valor,
+          new Date() // Isto irá inserir a data e a hora atuais
+      ]);
 
-  // Gera uma ID de sessão única
-  const sessionId = jwt.sign({ email }, 'suus02201998##', { expiresIn: '1h' });
+      let sql = "INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry) VALUES ?";
 
-  // Consulta para inserir os dados de checkout no banco de dados
-  const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-  
-  // Executa a consulta
-  db.query(query, [sessionId, email, cursos, valor], (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send({ success: false, message: err.message });
-    }
-
-    // Envia a ID da sessão como resposta
-    res.send({ success: true, sessionId });
-  });
+      pool.query(sql, [values], function (err, result) {
+          if (err) {
+              console.error(err);
+              res.status(500).send(err);
+          } else {
+              console.log("Número de registros inseridos: " + result.affectedRows);
+              req.session.cart = []; // Limpe o carrinho
+              res.send("Checkout concluído com sucesso!");
+          }
+      });
+  } else {
+      res.status(400).send("O carrinho está vazio");
+  }
 });
+
 
 
 app.post('/register', (req, res) => {

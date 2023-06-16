@@ -130,6 +130,32 @@ app.post('/create_preference', async (req, res) => {
   }
 });
 
+app.post('/webhook', (req, res) => {
+  // Seu código para tratar a notificação do webhook aqui
+
+  const event = req.body;
+  
+  // Verifica se a ação é referente a um pagamento aprovado
+  if (event.action === "payment.created" && event.data.status === "approved") {
+    const email = event.data.additional_info.payer.email;
+    const sessionId = event.data.id;
+    const courses = JSON.parse(event.data.additional_info.items);
+    const amount = event.data.transaction_amount;
+
+    const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+    db.query(query, [sessionId, email, JSON.stringify(courses), amount], (err, result) => {
+      if (err) {
+        console.error('Error inserting checkout data into the database: ', err);
+        return res.status(500).send({ success: false, message: err.message });
+      }
+      res.send({ success: true });
+    });
+  }
+
+  res.status(200).end();
+});
+
+
 const port = process.env.PORT || 5000;
 
 app.listen(port, () => console.log(`Server is running on port ${port}`));

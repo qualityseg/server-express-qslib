@@ -131,25 +131,29 @@ app.post('/create_preference', async (req, res) => {
 });
 
 app.post('/webhook', (req, res) => {
-  // Seu código para tratar a notificação do webhook aqui
+  console.log("Received a webhook event", req.body);  // Log the whole event for debugging
 
   const event = req.body;
-  
-  // Verifica se a ação é referente a um pagamento aprovado
-  if (event.action === "payment.created" && event.data.status === "approved") {
-    const email = event.data.additional_info.payer.email;
-    const sessionId = event.data.id;
-    const courses = JSON.parse(event.data.additional_info.items);
-    const amount = event.data.transaction_amount;
 
-    const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-    db.query(query, [sessionId, email, JSON.stringify(courses), amount], (err, result) => {
-      if (err) {
-        console.error('Error inserting checkout data into the database: ', err);
-        return res.status(500).send({ success: false, message: err.message });
-      }
-      res.send({ success: true });
-    });
+  if (event.action === "payment.created" && event.data.status === "approved") {
+      const email = event.data.additional_info.payer.email;
+      const sessionId = event.data.id;
+      const courses = JSON.parse(event.data.additional_info.items);
+      const amount = event.data.transaction_amount;
+
+      console.log("Saving checkout data", {sessionId, email, courses, amount});  // Log the data we're about to save
+
+      const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+      db.query(query, [sessionId, email, JSON.stringify(courses), amount], (err, result) => {
+          if (err) {
+              console.error('Error inserting checkout data into the database: ', err);
+              return res.status(500).send({ success: false, message: err.message });
+          }
+          console.log("Successfully saved checkout data");  // Log a message if the data was saved successfully
+          res.send({ success: true });
+      });
+  } else {
+      console.log("Webhook event not relevant, ignoring");  // Log a message if the event is not relevant
   }
 
   res.status(200).end();

@@ -72,6 +72,35 @@ app.use(cors({
 
 app.use(express.json());
 
+app.post('/create_preference', async (req, res) => {
+  const { email, course_id, quantidade, titulo, valor } = req.body;
+
+  let expiryDate = new Date();
+  expiryDate.setHours(expiryDate.getHours() + 1);
+
+  const addSelectedCourseQuery = 'INSERT INTO selected_courses (email, course_id, quantidade, titulo, valor, expiry) VALUES (?, ?, ?, ?, ?, ?)';
+
+  db.query(addSelectedCourseQuery, [email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Erro ao processar a solicitação');
+    } else {
+      res.status(200).send('Seleção adicionada com sucesso');
+    }
+  });
+});
+
+setInterval(() => {
+  let deleteExpiredSelectionsQuery = 'DELETE FROM selected_courses WHERE expiry < NOW()';
+  db.query(deleteExpiredSelectionsQuery, (err, result) => {
+    if (err) {
+      console.error('Erro ao apagar seleções expiradas:', err);
+    } else {
+      console.log('Seleções expiradas apagadas com sucesso');
+    }
+  });
+}, 10 * 60 * 1000); // Executa a cada 10 minutos
+
 
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;

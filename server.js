@@ -144,7 +144,7 @@ app.post('/webhook', async (req, res) => {
       if (payment.body && payment.body.payer && payment.body.status === 'approved') {
         const email = payment.body.payer.email;
         const sessionId = payment.body.id;
-        const courses = JSON.parse(payment.body.additional_info.items);
+        const courses = payment.body.additional_info.items;
         const amount = payment.body.transaction_amount;
 
         console.log("Saving checkout data", {sessionId, email, courses, amount});  

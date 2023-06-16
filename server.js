@@ -38,11 +38,11 @@ db.getConnection((err, connection) => {
     )
   `;
 
-  connection.query(createCheckoutTableQuery, err => {
+  connection.query(createSelectedCoursesTableQuery, err => {
     if (err) throw err;
     console.log('Tabela de checkout verificada / criada com sucesso');
   });
-
+  
   connection.release();
 });
 

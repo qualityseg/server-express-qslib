@@ -1,10 +1,12 @@
 const express = require('express');
+const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const mercadopago = require('mercadopago');
 
 const app = express();
+app.use(cookieParser());
 
 const db = mysql.createPool({
   host: '129.148.55.118',
@@ -69,15 +71,17 @@ app.use(cors())
 
 app.use(express.json());
 
-app.post('/create_preference', async (req, res) => {
-  const { email, course_id, quantidade, titulo, valor } = req.body;
+app.post('/create_preference', (req, res) => {
+  // extrair session_id do cookie
+  const session_id = req.cookies['session_id'];
+
 
   let expiryDate = new Date();
   expiryDate.setHours(expiryDate.getHours() + 1);
 
   const addSelectedCourseQuery = 'INSERT INTO selected_courses (email, course_id, quantidade, titulo, valor, expiry) VALUES (?, ?, ?, ?, ?, ?)';
 
-  db.query(addSelectedCourseQuery, [email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
+  db.query(addSelectedCourseQuery, [session_id, email, course_id, quantidade, titulo, valor, expiryDate], (err, result) => {
     if (err) {
       console.error(err);
       res.status(500).send('Erro ao processar a solicitação');

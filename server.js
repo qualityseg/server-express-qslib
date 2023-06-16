@@ -48,13 +48,41 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
+app.use(cors())
+
+app.use(express.json());
+
+app.post('/create_preference', (req, res) => {
+  const { email, courses } = req.body;
+  const session_id = req.cookies['session_id'];
+  
+  let expiryDate = new Date();
+  expiryDate.setHours(expiryDate.getHours() + 1);
+
+  const addSelectedCourseQuery = 'INSERT INTO selected_courses (session_id, email, course_id, quantidade, titulo, valor, expiry) VALUES ?';
+
+  const values = courses.map(course => [session_id, email, course.id, course.quantidade, course.titulo, course.valor, expiryDate]);
+
+  db.query(addSelectedCourseQuery, [values], (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).send('Erro ao processar a solicitação');
+    } else {
+      res.status(200).send('Seleção adicionada com sucesso');
+    }
+  });
+});
 
 setInterval(() => {
-  const deleteExpiredQuery = `DELETE FROM selected_courses WHERE expiry < NOW()`;
-  db.query(deleteExpiredQuery, (err, result) => {
-    // handle results
+  let deleteExpiredSelectionsQuery = 'DELETE FROM selected_courses WHERE expiry < NOW()';
+  db.query(deleteExpiredSelectionsQuery, (err, result) => {
+    if (err) {
+      console.error('Erro ao apagar seleções expiradas:', err);
+    } else {
+      console.log('Seleções expiradas apagadas com sucesso');
+    }
   });
-}, 3600000); // executa a cada hora
+}, 10 * 60 * 1000); // Executa a cada 10 minutos
 
 app.use(cors())
 

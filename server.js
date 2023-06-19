@@ -73,7 +73,7 @@ app.delete('/deleteAll', (req, res) => {
 app.post('/register', (req, res) => {
   const { usuario, nome, email, senha, unidade, setor, acesso } = req.body;
 
-  const query = 'INSERT INTO cadastro (usuario, nome, email, senha, unidade, setor, acesso) VALUES (?, ?, ?, ?, ?, ?)';
+  const query = 'INSERT INTO cadastro (usuario, nome, email, senha, unidade, setor, acesso) VALUES (?, ?, ?, ?, ?, ?, ?)';
   db.query(query, [usuario, nome, email, senha, unidade, setor, acesso], (err, result) => {
     
     if (err) {
@@ -85,6 +85,7 @@ app.post('/register', (req, res) => {
   });
 
 });
+
 
 app.post('/payment_notification', (req, res) => {
   // Extraia os detalhes do pagamento do corpo da requisição

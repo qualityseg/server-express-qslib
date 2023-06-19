@@ -70,12 +70,11 @@ app.delete('/deleteAll', (req, res) => {
   });
 });
 
-
 app.post('/register', (req, res) => {
-  const { usuario, senha } = req.body;
+  const { nome, email, senha, unidade, setor, acesso } = req.body;
 
-  const query = 'INSERT INTO cadastro (usuario, senha) VALUES (?, ?)';
-  db.query(query, [usuario, senha], (err, result) => {
+  const query = 'INSERT INTO cadastro (nome, email, senha, unidade, setor, acesso) VALUES (?, ?, ?, ?, ?, ?)';
+  db.query(query, [nome, email, senha, unidade, setor, acesso], (err, result) => {
     
     if (err) {
       console.log(err);

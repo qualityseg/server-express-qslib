@@ -26,59 +26,6 @@ app.use(cors());
 app.use(express.json());
 
 
-app.post('/login', (req, res) => {
-  const { usuario, senha } = req.body;
-
-  const query = 'SELECT * FROM cadastro WHERE usuario = ?';
-  db.query(query, [usuario], (err, results) => {
-    // ...
-
-    if (senha !== user.senha) {
-      return res.send({ success: false, message: 'Wrong password' });
-    }
-
-    const token = jwt.sign({ id: user.id, role: user.acesso }, 'suus02201998##', { expiresIn: '1h' });
-    res.cookie('token', token, { httpOnly: true });
-
-    // inclua o nome do usuário na resposta
-    res.send({ success: true, username: user.usuario, token });
-    
-  });
-});
-
-
-
-app.delete('/deleteAll', (req, res) => {
-  const query = 'DELETE FROM cadastro';
-  db.query(query, (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.send({ success: false, message: 'Falha ao excluir registros: ' + err.message });
-    }
-
-    if (result.affectedRows > 0) {
-      res.send({ success: true, message: `${result.affectedRows} registro(s) foram excluídos.` });
-    } else {
-      res.send({ success: false, message: 'Não há registros para excluir.' });
-    }
-  });
-});
-
-app.post('/register', (req, res) => {
-  const { usuario, nome, email, senha, unidade, setor, acesso } = req.body;
-
-  const query = 'INSERT INTO cadastro (usuario, nome, email, senha, unidade, setor, acesso) VALUES (?, ?, ?, ?, ?, ?, ?)';
-  db.query(query, [usuario, nome, email, senha, unidade, setor, acesso], (err, result) => {
-    
-    if (err) {
-      console.log(err);
-      return res.send({ success: false, message: err.message });
-    }
-
-    res.send({ success: true });
-  });
-
-});
 
 app.use((req, res, next) => {
   // Se não há token na requisição, passe para a próxima rota
@@ -96,25 +43,6 @@ app.use((req, res, next) => {
   next();
 });
 
-const protectedRoutes = [
-  { url: '/deleteAll', methods: ['DELETE'], roles: ['admin'] },
-  // Adicione outras rotas protegidas aqui
-];
-
-app.use((req, res, next) => {
-  if (!req.user) return next();
-
-  const protectedRoute = protectedRoutes.find(
-    (route) => route.url === req.path && route.methods.includes(req.method)
-  );
-
-  if (protectedRoute && !protectedRoute.roles.includes(req.user.role)) {
-    return res.status(403).json({ success: false, message: 'Forbidden' });
-  }
-
-  next();
-});
-const token = jwt.sign({ id: user.id, role: user.acesso }, 'suus02201998##', { expiresIn: '1h' });
 
 
 
@@ -140,30 +68,21 @@ mercadopago.configure({
   access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
 });
 
-app.post('/create_preference', async (req, res) => {
-  const { title, price, quantity, email, cursos } = req.body;
-
-  const preference = {
-    items: [
-      {
-        title,
-        unit_price: Number(price),
-        quantity: Number(quantity),
-      },
-    ],
+app.post('/create_preference', (req, res) => {
+  let preference = {
+      items: req.body.items, // assumindo que você envia os itens de pagamento no corpo da requisição
+      payer: {
+          email: req.body.email // assumindo que você envia o email do comprador no corpo da requisição
+      }
   };
 
-  try {
-    const response = await mercadopago.preferences.create(preference);
-    const id = response.body.id;
-
-    // Armazenar informações temporariamente
-    pendingTransactions[id] = { email, cursos, valor: price * quantity };
-
-    res.json({ id });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  mercadopago.preferences.create(preference)
+      .then(function(response){
+          res.send({id: response.body.id});
+      }).catch(function(error){
+          console.log(error);
+          res.status(500).send(error);
+      });
 });
 
 

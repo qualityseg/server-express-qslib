@@ -23,36 +23,27 @@ db.getConnection((err, connection) => {
 app.use(cors());
 app.use(express.json());
 
+const pendingTransactions = {};
 
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;
 
   const query = 'SELECT * FROM cadastro WHERE usuario = ?';
   db.query(query, [usuario], (err, results) => {
-   
-    if (err) {
-      console.error('Error querying the database: ', err);
-      return res.send({ success: false, message: err.message });
-    }
-    if (results.length === 0) {
-      return res.send({ success: false, message: 'User not found' });
-    }
-    const user = results[0];
-    console.log('User found in database: ', user);
+    // ...
 
     if (senha !== user.senha) {
       return res.send({ success: false, message: 'Wrong password' });
     }
-    
-    const token = jwt.sign({ id: user.id }, 'suus02201998##', { expiresIn: '1h' });
+
+    const token = jwt.sign({ id: user.id, role: user.acesso }, 'suus02201998##', { expiresIn: '1h' });
     res.cookie('token', token, { httpOnly: true });
-    
+
     // inclua o nome do usuário na resposta
     res.send({ success: true, username: user.usuario, token });
     
   });
 });
-
 
 app.delete('/deleteAll', (req, res) => {
   const query = 'DELETE FROM cadastro';
@@ -86,24 +77,50 @@ app.post('/register', (req, res) => {
 
 });
 
+app.use((req, res, next) => {
+  // Se não há token na requisição, passe para a próxima rota
+  if (!req.headers.authorization) return next();
+
+  // Decodificar o token
+  const token = req.headers.authorization.split(' ')[1];
+  try {
+    const payload = jwt.verify(token, 'suus02201998##');
+    req.user = payload;
+  } catch (error) {
+    console.log('Error decoding JWT: ', error);
+  }
+
+  next();
+});
+
+const protectedRoutes = [
+  { url: '/deleteAll', methods: ['DELETE'], roles: ['admin'] },
+  // Adicione outras rotas protegidas aqui
+];
+
+app.use((req, res, next) => {
+  if (!req.user) return next();
+
+  const protectedRoute = protectedRoutes.find(
+    (route) => route.url === req.path && route.methods.includes(req.method)
+  );
+
+  if (protectedRoute && !protectedRoute.roles.includes(req.user.role)) {
+    return res.status(403).json({ success: false, message: 'Forbidden' });
+  }
+
+  next();
+});
 
 app.post('/payment_notification', (req, res) => {
   // Extraia os detalhes do pagamento do corpo da requisição
   const { id, email, cursos, valor } = req.body;
 
-  // Query para inserir os detalhes do pagamento no banco de dados
-  const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-  
-  // Execute a query
-  db.query(query, [id, email, cursos, valor], (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send({ success: false, message: err.message });
-    }
-    res.send({ success: true });
-  });
-});
+  // Salve os detalhes do pagamento na memória
+  pendingTransactions[id] = { email, cursos, valor };
 
+  res.send({ success: true });
+});
 
 mercadopago.configure({
   access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
@@ -123,7 +140,7 @@ app.post('/create_preference', async (req, res) => {
   };
 
   try {
-    const response = await mercadopago.preferences.create(preference); // Correção aqui
+    const response = await mercadopago.preferences.create(preference);
     res.json({ id: response.body.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -131,32 +148,32 @@ app.post('/create_preference', async (req, res) => {
 });
 
 app.post('/webhook', async (req, res) => {
-  console.log("Received a webhook event", req.body);  
+  console.log("Received a webhook event", req.body);
 
   const event = req.body;
 
   if (event.action === "payment.created") {
     try {
-      // Fetch payment details from Mercado Pago API
       const payment = await mercadopago.payment.findById(event.data.id);
 
-      // Check if payment and payer exist and the payment is approved
       if (payment.body && payment.body.payer && payment.body.status === 'approved') {
-        const email = payment.body.payer.email;
-        const sessionId = payment.body.id;
-        const courses = payment.body.additional_info.items;
-        const amount = payment.body.transaction_amount;
+        const paymentData = pendingTransactions[event.data.id];
 
-        console.log("Saving checkout data", {sessionId, email, courses, amount});  
+        if (!paymentData) {
+          console.error('Payment data not found for approved transaction');
+          return res.status(500).end();
+        }
 
-        const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-        db.query(query, [sessionId, email, JSON.stringify(courses), amount], (err, result) => {
+        const { email, cursos, valor } = paymentData;
+
+        const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+        db.query(query, [event.data.id, email, JSON.stringify(cursos), valor], (err, result) => {
           if (err) {
-              console.error('Error inserting checkout data into the database: ', err);
-              return res.status(500).send({ success: false, message: err.message });
+            console.error('Error inserting payment data into the database: ', err);
+            return res.status(500).send({ success: false, message: err.message });
           }
-          console.log("Query result: ", result);
-          console.log("Successfully saved checkout data");
+          console.log("Successfully saved payment data");
+          delete pendingTransactions[event.data.id];
           res.send({ success: true });
         });
       } else {
@@ -171,9 +188,6 @@ app.post('/webhook', async (req, res) => {
 
   res.status(200).end();
 });
-
-
-
 
 const port = process.env.PORT || 5000;
 

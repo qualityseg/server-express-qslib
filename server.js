@@ -3,6 +3,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const mercadopago = require('mercadopago');
+const pendingTransactions = {};
+
 
 const app = express();
 
@@ -23,7 +25,6 @@ db.getConnection((err, connection) => {
 app.use(cors());
 app.use(express.json());
 
-const pendingTransactions = {};
 
 app.post('/login', (req, res) => {
   const { usuario, senha } = req.body;
@@ -44,6 +45,8 @@ app.post('/login', (req, res) => {
     
   });
 });
+
+
 
 app.delete('/deleteAll', (req, res) => {
   const query = 'DELETE FROM cadastro';
@@ -111,23 +114,34 @@ app.use((req, res, next) => {
 
   next();
 });
+const token = jwt.sign({ id: user.id, role: user.acesso }, 'suus02201998##', { expiresIn: '1h' });
+
+
 
 app.post('/payment_notification', (req, res) => {
   // Extraia os detalhes do pagamento do corpo da requisição
   const { id, email, cursos, valor } = req.body;
 
-  // Salve os detalhes do pagamento na memória
-  pendingTransactions[id] = { email, cursos, valor };
-
-  res.send({ success: true });
+  // Query para inserir os detalhes do pagamento no banco de dados
+  const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+  
+  // Execute a query
+  db.query(query, [id, email, cursos, valor], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send({ success: false, message: err.message });
+    }
+    res.send({ success: true });
+  });
 });
+
 
 mercadopago.configure({
   access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
 });
 
 app.post('/create_preference', async (req, res) => {
-  const { title, price, quantity } = req.body;
+  const { title, price, quantity, email, cursos } = req.body;
 
   const preference = {
     items: [
@@ -141,39 +155,49 @@ app.post('/create_preference', async (req, res) => {
 
   try {
     const response = await mercadopago.preferences.create(preference);
-    res.json({ id: response.body.id });
+    const id = response.body.id;
+
+    // Armazenar informações temporariamente
+    pendingTransactions[id] = { email, cursos, valor: price * quantity };
+
+    res.json({ id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+
 app.post('/webhook', async (req, res) => {
-  console.log("Received a webhook event", req.body);
+  console.log("Received a webhook event", req.body);  
 
   const event = req.body;
 
   if (event.action === "payment.created") {
     try {
+      // Fetch payment details from Mercado Pago API
       const payment = await mercadopago.payment.findById(event.data.id);
 
+      // Check if payment and payer exist and the payment is approved
       if (payment.body && payment.body.payer && payment.body.status === 'approved') {
-        const paymentData = pendingTransactions[event.data.id];
+        const sessionId = payment.body.id;
 
-        if (!paymentData) {
-          console.error('Payment data not found for approved transaction');
-          return res.status(500).end();
-        }
+        // Recuperar informações de pendingTransactions
+        const { email, cursos, valor } = pendingTransactions[sessionId] || {};
 
-        const { email, cursos, valor } = paymentData;
+        console.log("Saving checkout data", {sessionId, email, cursos, valor});  
 
-        const query = 'INSERT INTO pagamentos (id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-        db.query(query, [event.data.id, email, JSON.stringify(cursos), valor], (err, result) => {
+        const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+        db.query(query, [sessionId, email, JSON.stringify(cursos), valor], (err, result) => {
           if (err) {
-            console.error('Error inserting payment data into the database: ', err);
-            return res.status(500).send({ success: false, message: err.message });
+              console.error('Error inserting checkout data into the database: ', err);
+              return res.status(500).send({ success: false, message: err.message });
           }
-          console.log("Successfully saved payment data");
-          delete pendingTransactions[event.data.id];
+          console.log("Query result: ", result);
+          console.log("Successfully saved checkout data");
+
+          // Remover transação de pendingTransactions
+          delete pendingTransactions[sessionId];
+
           res.send({ success: true });
         });
       } else {
@@ -188,6 +212,9 @@ app.post('/webhook', async (req, res) => {
 
   res.status(200).end();
 });
+
+
+
 
 const port = process.env.PORT || 5000;
 

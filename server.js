@@ -85,51 +85,42 @@ app.post('/create_preference', (req, res) => {
       });
 });
 
-
 app.post('/webhook', async (req, res) => {
-  console.log("Received a webhook event", req.body);  
-
-  const event = req.body;
-
-  if (event.action === "payment.created") {
-    try {
-      // Fetch payment details from Mercado Pago API
-      const payment = await mercadopago.payment.findById(event.data.id);
-
-      // Check if payment and payer exist and the payment is approved
-      if (payment.body && payment.body.payer && payment.body.status === 'approved') {
-        const sessionId = payment.body.id;
-
-        // Recuperar informações de pendingTransactions
-        const { email, cursos, valor } = pendingTransactions[sessionId] || {};
-
-        console.log("Saving checkout data", {sessionId, email, cursos, valor});  
-
-        const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-        db.query(query, [sessionId, email, JSON.stringify(cursos), valor], (err, result) => {
-          if (err) {
-              console.error('Error inserting checkout data into the database: ', err);
-              return res.status(500).send({ success: false, message: err.message });
-          }
-          console.log("Query result: ", result);
-          console.log("Successfully saved checkout data");
-
-          // Remover transação de pendingTransactions
-          delete pendingTransactions[sessionId];
-
-          res.send({ success: true });
-        });
-      } else {
-        console.log("Payment not approved, ignoring");
-      }
-    } catch (error) {
-      console.error('Error fetching payment details from Mercado Pago API: ', error);
+  const transactionId = req.body.id; // ou req.body.data.id, depende de como vem no corpo do webhook
+  const transactionDetails = await axios.get(`https://api.mercadopago.com/v1/payments/${transactionId}`, {
+    headers: {
+      Authorization: 'Bearer TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905'
     }
-  } else {
-    console.log("Webhook event not relevant, ignoring");
+  });
+  
+  if (transactionDetails.status === 'approved') {
+    const email = transactionDetails.payer.email;
+    const courses = transactionDetails.additional_info.courses;
+    const totalValue = transactionDetails.transaction_amount;
+    
+    const connection = mysql.createConnection({
+      host: '129.148.55.118',
+      user: 'QualityAdmin',
+      password: 'Suus0220##',
+      database: 'qualityseg_db'
+    });
+
+    connection.connect();
+
+    const query = `
+      INSERT INTO checkout (session_id, email, cursos, valor)
+      VALUES (?, ?, ?, ?)
+    `;
+
+    connection.query(query, [transactionId, email, JSON.stringify(courses), totalValue], (error, results, fields) => {
+      if (error) throw error;
+      console.log('Dados inseridos com sucesso!');
+    });
+
+    connection.end();
   }
 
-  res.status(200).end();
+  res.sendStatus(200);
 });
 
 

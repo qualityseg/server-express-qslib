@@ -85,44 +85,42 @@ app.post('/create_preference', (req, res) => {
       });
 });
 
-app.post('/webhook', async (req, res) => {
-  const transactionId = req.body.id; // ou req.body.data.id, depende de como vem no corpo do webhook
-  const transactionDetails = await axios.get(`https://api.mercadopago.com/v1/payments/${transactionId}`, {
+app.post('/webhook', (req, res) => {
+  const paymentId = req.query.id;
+
+  // Chame a API do Mercado Pago para obter os detalhes do pagamento
+  axios.get(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: {
-      Authorization: 'Bearer TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905'
+      'Authorization': `Bearer ${process.env.MERCADO_PAGO_ACCESS_TOKEN}`
     }
+  })
+  .then((response) => {
+    const payment = response.data;
+
+    if (payment.status === 'approved') {
+      // O pagamento foi aprovado, salve os dados do token no banco de dados
+      const { transaction_amount, payer, additional_info } = payment;
+
+      const { email } = payer;
+      const { courses } = JSON.parse(additional_info);
+
+      const newCheckout = {
+        session_id: payment.order.id,
+        email: email,
+        cursos: JSON.stringify(courses),
+        valor: transaction_amount
+      };
+
+      // Substitua com a função que você usa para salvar os dados no banco de dados
+      saveCheckoutData(newCheckout);
+    }
+  })
+  .catch((error) => {
+    console.error(error);
   });
-  
-  if (transactionDetails.status === 'approved') {
-    const email = transactionDetails.payer.email;
-    const courses = transactionDetails.additional_info.courses;
-    const totalValue = transactionDetails.transaction_amount;
-    
-    const connection = mysql.createConnection({
-      host: '129.148.55.118',
-      user: 'QualityAdmin',
-      password: 'Suus0220##',
-      database: 'qualityseg_db'
-    });
 
-    connection.connect();
-
-    const query = `
-      INSERT INTO checkout (session_id, email, cursos, valor)
-      VALUES (?, ?, ?, ?)
-    `;
-
-    connection.query(query, [transactionId, email, JSON.stringify(courses), totalValue], (error, results, fields) => {
-      if (error) throw error;
-      console.log('Dados inseridos com sucesso!');
-    });
-
-    connection.end();
-  }
-
-  res.sendStatus(200);
+  res.status(200).send();
 });
-
 
 
 

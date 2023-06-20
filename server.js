@@ -1,32 +1,53 @@
-const express = require('express');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const mysql = require('mysql');
-const mercadopago = require('mercadopago');
-const pendingTransactions = {};
-
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const mysql = require("mysql");
 
 const app = express();
 
-const db = mysql.createPool({
-  host: '129.148.55.118',
-  user: 'QualityAdmin',
-  password: 'Suus0220##',
-  database: 'qualityseg_db',
-  connectionLimit: 10,
-});
-
-db.getConnection((err, connection) => {
-  if (err) throw err;
-  console.log('Conectado ao banco de dados MySQL');
-  connection.release();
-});
-
 app.use(cors());
-app.use(express.json());
 
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
+const db = mysql.createConnection({
+    host: "129.148.55.118",
+    user: "QualityAdmin",
+    password: "Suus0220##",
+    database: "qualityseg_db",
+});
 
+db.connect((err) => {
+    if (err) throw err;
+    console.log("Connected to database");
+});
+
+app.post("/checkout", (req, res) => {
+    const data = req.body;
+    console.log(data);
+
+    const sql =
+        "INSERT INTO checkout (session_id, email, cursos, valor) VALUES ?";
+    const values = [
+        [
+            data.session_id,
+            data.email,
+            JSON.stringify(data.cursos),
+            JSON.stringify(data.valor),
+        ],
+    ];
+
+    db.query(sql, [values], function (err, result) {
+        if (err) throw err;
+        console.log("Number of records inserted: " + result.affectedRows);
+    });
+
+    res.json({ status: "ok" });
+});
+
+app.listen(5000, () => {
+    console.log("Server is running on port 5000");
+});
 app.use((req, res, next) => {
   // Se não há token na requisição, passe para a próxima rota
   if (!req.headers.authorization) return next();

@@ -68,6 +68,20 @@ mercadopago.configure({
   access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
 });
 
+app.post('/save_checkout', (req, res) => {
+  const { session_id, email, cursos, valor } = req.body;
+
+  const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
+  db.query(query, [session_id, email, JSON.stringify(cursos), valor], (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(500).send({ success: false, message: err.message });
+    }
+    res.send({ success: true });
+  });
+});
+
+
 app.post('/create_preference', (req, res) => {
   let preference = {
       items: req.body.items, // assumindo que você envia os itens de pagamento no corpo da requisição

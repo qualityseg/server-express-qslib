@@ -71,35 +71,26 @@ mercadopago.configure({
   access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
 });
 
-app.post('/save_checkout', (req, res) => {
-  const { session_id, email, cursos, valor } = req.body;
-
-  const query = 'INSERT INTO checkout (session_id, email, cursos, valor) VALUES (?, ?, ?, ?)';
-  db.query(query, [session_id, email, JSON.stringify(cursos), valor], (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(500).send({ success: false, message: err.message });
-    }
-    res.send({ success: true });
-  });
-});
-
-
 app.post('/create_preference', (req, res) => {
   let preference = {
-      items: req.body.items, // assumindo que você envia os itens de pagamento no corpo da requisição
-      payer: {
-          email: req.body.email // assumindo que você envia o email do comprador no corpo da requisição
-      }
+    items: req.body.items.map(item => ({
+      title: item.title,
+      unit_price: item.unit_price,
+      quantity: item.quantity,
+      description: item.description, // Adiciona a descrição em cada item, que pode ser usada para o email.
+    })),
+    payer: {
+      email: req.body.email
+    },
   };
 
   mercadopago.preferences.create(preference)
-      .then(function(response){
-          res.send({id: response.body.id});
-      }).catch(function(error){
-          console.log(error);
-          res.status(500).send(error);
-      });
+    .then(function(response){
+      res.send({id: response.body.id});
+    }).catch(function(error){
+      console.log(error);
+      res.status(500).send(error);
+    });
 });
 
 app.post('/webhook', (req, res) => {

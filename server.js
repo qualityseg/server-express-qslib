@@ -20,8 +20,13 @@ db.getConnection((err, connection) => {
   connection.release();
 });
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
+
 
 
 mercadopago.configure({
@@ -29,16 +34,10 @@ mercadopago.configure({
 });
 
 app.post('/create_preference', async (req, res) => {
-  const { title, price, quantity } = req.body;
+  const items = req.body.items;  // Agora, items é um array
 
   const preference = {
-    items: [
-      {
-        title,
-        unit_price: Number(price),
-        quantity: Number(quantity),
-      },
-    ],
+    items,  // Usamos esse array diretamente aqui
   };
 
   try {
@@ -48,6 +47,7 @@ app.post('/create_preference', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 const port = process.env.PORT || 5000;
 

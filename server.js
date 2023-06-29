@@ -34,19 +34,24 @@ mercadopago.configure({
 });
 
 app.post('/create_preference', async (req, res) => {
-  const items = req.body.items;  // Agora, items é um array
+  const items = req.body;
 
   const preference = {
-    items,  // Usamos esse array diretamente aqui
+    items: items.map(item => ({
+      title: item.title,
+      unit_price: Number(item.price),
+      quantity: Number(item.quantity),
+    })),
   };
 
   try {
-    const response = await mercadopago.preferences.create(preference); // Correção aqui
+    const response = await mercadopago.preferences.create(preference);
     res.json({ id: response.body.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 const port = process.env.PORT || 5000;

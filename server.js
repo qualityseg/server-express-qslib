@@ -1,41 +1,57 @@
 const express = require('express');
-const cors = require('cors');  // importe a biblioteca CORS
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const mysql = require('mysql');
 const mercadopago = require('mercadopago');
 
-mercadopago.configure({
-  access_token: 'TEST-5726910917773045-022319-9fe40cf329e21dbf8d13e488ad37d1b5-638695398',
+const app = express();
+
+const db = mysql.createPool({
+  host: '129.148.55.118',
+  user: 'QualityAdmin',
+  password: 'Suus0220##',
+  database: 'qualityseg_db',
+  connectionLimit: 10,
 });
 
-const app = express();
+db.getConnection((err, connection) => {
+  if (err) throw err;
+  console.log('Conectado ao banco de dados MySQL');
+  connection.release();
+});
+
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 app.use(express.json());
 
-app.use(cors());  // adicione o middleware CORS
+
+
+mercadopago.configure({
+  access_token: 'TEST-2684905602430236-052513-51d07b1caa42a7938ab7e2a9f13a7f98-135153905',
+});
 
 app.post('/create_preference', async (req, res) => {
-  const { title, price, quantity } = req.body;
+  // Os itens são passados como um array no corpo da requisição
+  const { items } = req.body;
 
   const preference = {
-    items: [
-      {
-        title,
-        unit_price: Number(price),
-        quantity: Number(quantity),
-      },
-    ],
+    items,  // Use os itens fornecidos
   };
 
   try {
     const response = await mercadopago.preferences.create(preference);
-    console.log(response);
     res.json({ id: response.body.id });
   } catch (error) {
-    console.log(error);  // Isso permitirá que você veja o erro no console do servidor
     res.status(500).json({ error: error.message });
   }
 });
 
+
+
+
 const port = process.env.PORT || 5000;
 
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+app.listen(port, () => console.log(`Server is running on port ${port}`));

@@ -34,20 +34,27 @@ mercadopago.configure({
 });
 
 app.post('/create_preference', async (req, res) => {
-  // Os itens são passados como um array no corpo da requisição
-  const { items } = req.body;
+  const { title, price, quantity } = req.body;
 
   const preference = {
-    items,  // Use os itens fornecidos
+    items: [
+      {
+        title,
+        unit_price: Number(price),
+        quantity: Number(quantity),
+      },
+    ],
   };
 
   try {
-    const response = await mercadopago.preferences.create(preference);
+    const response = await mercadopago.preferences.create(preference); // Correção aqui
+    console.log(response);  // Adicionando esta linha
     res.json({ id: response.body.id });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
 
 
 

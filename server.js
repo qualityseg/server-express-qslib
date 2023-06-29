@@ -34,14 +34,11 @@ mercadopago.configure({
 });
 
 app.post('/create_preference', async (req, res) => {
-  const items = req.body;
+  // Os itens são passados como um array no corpo da requisição
+  const { items } = req.body;
 
   const preference = {
-    items: items.map(item => ({
-      title: item.title,
-      unit_price: Number(item.price),
-      quantity: Number(item.quantity),
-    })),
+    items,  // Use os itens fornecidos
   };
 
   try {

@@ -21,7 +21,7 @@ db.getConnection((err, connection) => {
 });
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://quality-seg-cursos-ea-dv4-i4shb1jdi-qualityseg.vercel.app'],
+  origin: ['http://localhost:3000', 'https://qualitysegconsultoria-cursosead.vercel.app'],
   methods: ['GET', 'POST'],
   credentials: true
 }));

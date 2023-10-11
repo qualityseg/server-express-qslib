@@ -30,7 +30,7 @@ app.use(express.json());
 
 
 mercadopago.configure({
-  access_token: 'APP_USR-2684905602430236-052513-9eece6d19d92891e0f385f8ad4816f6d-135153905',
+  access_token: 'APP_USR-7304812877338953-082314-54650cc5997e303c67cc93800415cce0-226752657',
 });
 
 app.post('/create_preference', async (req, res) => {

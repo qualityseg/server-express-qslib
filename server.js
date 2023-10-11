@@ -9,7 +9,7 @@ const app = express();
 const db = mysql.createPool({
   host: '129.148.55.118',
   user: 'QualityAdmin',
-  password: 'Suus0220##',
+  password: 'Seg@1977',
   database: 'qualityseg_db',
   connectionLimit: 10,
 });
